@@ -56,6 +56,13 @@ public:
   void transformFreeSurferModelToRAS(vtkMRMLModelNode* surf, vtkMRMLScalarVolumeNode* orig);
   void applyFreeSurferSegmentationLUT(vtkMRMLSegmentationNode* segmentation);
 
+  ///// Computes matrix we need to register
+  ///// V1Node to V2Node given the "register.dat" matrix from tkregister2 (FreeSurfer)
+  //void TranslateFreeSurferRegistrationMatrixIntoSlicerRASToRASMatrix(vtkMRMLVolumeNode* V1Node,
+  //  vtkMRMLVolumeNode* V2Node,
+  //  vtkMatrix4x4* FSRegistrationMatrix,
+  //  vtkMatrix4x4* ResultsMatrix);
+
 protected:
   vtkSlicerFreeSurferImporterLogic();
   virtual ~vtkSlicerFreeSurferImporterLogic();

@@ -22,6 +22,10 @@
 #include "qSlicerFreeSurferImporterModule.h"
 #include "qSlicerFreeSurferImporterModuleWidget.h"
 
+#include <qSlicerCoreApplication.h>
+#include <qSlicerFreeSurferModelsReader.h>
+#include <qSlicerCoreIOManager.h>
+
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_ExtensionTemplate
 class qSlicerFreeSurferImporterModulePrivate
@@ -46,6 +50,8 @@ qSlicerFreeSurferImporterModule::qSlicerFreeSurferImporterModule(QObject* _paren
   : Superclass(_parent)
   , d_ptr(new qSlicerFreeSurferImporterModulePrivate)
 {
+  qSlicerCoreApplication* app = qSlicerCoreApplication::application();
+  app->coreIOManager()->registerIO(new qSlicerFreeSurferModelsReader(this));
 }
 
 //-----------------------------------------------------------------------------

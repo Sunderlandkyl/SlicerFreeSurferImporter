@@ -19,8 +19,6 @@
 #include "vtkSlicerFreeSurferImporterLogic.h"
 
 // MRML includes
-#include <vtkMRMLFreeSurferModelStorageNode.h>
-#include <vtkMRMLFreeSurferModelOverlayStorageNode.h>
 #include <vtkMRMLModelNode.h>
 #include <vtkMRMLModelStorageNode.h>
 #include <vtkMRMLScalarVolumeNode.h>
@@ -28,6 +26,11 @@
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentationStorageNode.h>
 #include <vtkMRMLVolumeArchetypeStorageNode.h>
+
+// FreeSurferImporterMRML includes
+#include "vtkMRMLFreeSurferModelOverlayStorageNode.h"
+#include "vtkMRMLFreeSurferModelStorageNode.h"
+#include "vtkMRMLFreeSurferProceduralColorNode.h"
 
 // VTK includes
 #include <vtkImageData.h>
@@ -75,7 +78,15 @@ void vtkSlicerFreeSurferImporterLogic::SetMRMLSceneInternal(vtkMRMLScene * newSc
 //-----------------------------------------------------------------------------
 void vtkSlicerFreeSurferImporterLogic::RegisterNodes()
 {
-  assert(this->GetMRMLScene() != 0);
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene)
+    {
+    vtkErrorMacro("RegisterNodes: Invalid MRML scene!");
+    return;
+    }
+  scene->RegisterNodeClass(vtkSmartPointer<vtkMRMLFreeSurferModelOverlayStorageNode>::New());
+  scene->RegisterNodeClass(vtkSmartPointer<vtkMRMLFreeSurferModelStorageNode>::New());
+  scene->RegisterNodeClass(vtkSmartPointer<vtkMRMLFreeSurferProceduralColorNode>::New());
 }
 
 //---------------------------------------------------------------------------
@@ -191,8 +202,8 @@ bool vtkSlicerFreeSurferImporterLogic::loadFreeSurferScalarOverlay(std::string f
       continue;
       }
 
-    std::string modelNodeHemisphere = vtksys::SystemTools::GetFilenameWithoutExtension(modelNode->GetName());
-    if (modelNodeHemisphere != hemisphereName)
+    std::string modelNodeHemisphereName = vtksys::SystemTools::GetFilenameWithoutExtension(modelNode->GetName());
+    if (modelNodeHemisphereName != hemisphereName)
       {
       continue;
       }
@@ -328,3 +339,84 @@ void vtkSlicerFreeSurferImporterLogic::applyFreeSurferSegmentationLUT(vtkMRMLSeg
     segment->SetColor(info.color);
     }
 }
+
+////-------------------------------------------------------------------------
+//void vtkSlicerVolumesLogic::TranslateFreeSurferRegistrationMatrixIntoSlicerRASToRASMatrix(vtkMRMLVolumeNode* V1Node,
+//  vtkMRMLVolumeNode* V2Node,
+//  vtkMatrix4x4* FSRegistrationMatrix,
+//  vtkMatrix4x4* RAS2RASMatrix)
+//{
+//  if (V1Node && V2Node && FSRegistrationMatrix && RAS2RASMatrix)
+//  {
+//    RAS2RASMatrix->Zero();
+//
+//    //
+//    // Looking for RASv1_To_RASv2:
+//    //
+//    //---
+//    //
+//    // In Slicer:
+//    // [ IJKv1_To_IJKv2] = [ RAS_To_IJKv2 ]  [ RASv1_To_RASv2 ] [ IJK_To_RASv1 ] [i,j,k]transpose
+//    //
+//    // In FreeSurfer:
+//    // [ IJKv1_To_IJKv2] = [FStkRegVox_To_RASv2 ]inverse [ FSRegistrationMatrix] [FStkRegVox_To_RASv1 ] [ i,j,k] transpose
+//    //
+//    //----
+//    //
+//    // So:
+//    // [FStkRegVox_To_RASv2 ] inverse [ FSRegistrationMatrix] [FStkRegVox_To_RASv1 ] =
+//    // [ RAS_To_IJKv2 ]  [ RASv1_To_RASv2 ] [ IJKv1_2_RAS ]
+//    //
+//    //---
+//    //
+//    // Below use this shorthand:
+//    //
+//    // S = FStkRegVox_To_RASv2
+//    // T = FStkRegVox_To_RASv1
+//    // N = RAS_To_IJKv2
+//    // M = IJK_To_RASv1
+//    // R = FSRegistrationMatrix
+//    // [Sinv]  [R]  [T] = [N]  [RASv1_To_RASv2]  [M];
+//    //
+//    // So this is what we'll compute and use in Slicer instead
+//    // of the FreeSurfer register.dat matrix:
+//    //
+//    // [Ninv]  [Sinv]  [R]  [T]  [Minv]  = RASv1_To_RASv2
+//    //
+//    // I think we need orientation in FreeSurfer: nothing in the tkRegVox2RAS
+//    // handles scanOrder. The tkRegVox2RAS = IJKToRAS matrix for a coronal
+//    // volume. But for an Axial volume, these two matrices are different.
+//    // How do we compute the correct orientation for FreeSurfer Data?
+//
+//    vtkNew<vtkMatrix4x4> T;
+//    vtkNew<vtkMatrix4x4> S;
+//    vtkNew<vtkMatrix4x4> Sinv;
+//    vtkNew<vtkMatrix4x4> M;
+//    vtkNew<vtkMatrix4x4> Minv;
+//    vtkNew<vtkMatrix4x4> N;
+//    vtkNew<vtkMatrix4x4> Ninv;
+//
+//    //--
+//    // compute FreeSurfer tkRegVox2RAS for V1 volume
+//    //--
+//    ComputeTkRegVox2RASMatrix(V1Node, T.GetPointer());
+//
+//    //--
+//    // compute FreeSurfer tkRegVox2RAS for V2 volume
+//    //--
+//    ComputeTkRegVox2RASMatrix(V2Node, S.GetPointer());
+//
+//    // Probably a faster way to do these things?
+//    vtkMatrix4x4::Invert(S.GetPointer(), Sinv.GetPointer());
+//    V1Node->GetIJKToRASMatrix(M.GetPointer());
+//    V2Node->GetRASToIJKMatrix(N.GetPointer());
+//    vtkMatrix4x4::Invert(M.GetPointer(), Minv.GetPointer());
+//    vtkMatrix4x4::Invert(N.GetPointer(), Ninv.GetPointer());
+//
+//    //    [Ninv]  [Sinv]  [R]  [T]  [Minv]
+//    vtkMatrix4x4::Multiply4x4(T.GetPointer(), Minv.GetPointer(), RAS2RASMatrix);
+//    vtkMatrix4x4::Multiply4x4(FSRegistrationMatrix, RAS2RASMatrix, RAS2RASMatrix);
+//    vtkMatrix4x4::Multiply4x4(Sinv.GetPointer(), RAS2RASMatrix, RAS2RASMatrix);
+//    vtkMatrix4x4::Multiply4x4(Ninv.GetPointer(), RAS2RASMatrix, RAS2RASMatrix);
+//  }
+//}
