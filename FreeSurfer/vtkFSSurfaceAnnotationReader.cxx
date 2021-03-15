@@ -202,30 +202,15 @@ int vtkFSSurfaceAnnotationReader::ReadFSAnnotation()
   // Are we using an embedded or an external color table?
   vtkDebugMacro( << "ReadFSAnnotation: Are we using an external color table?\n\t" << this->UseExternalColorTableFile << endl);
 
-  if (this->UseExternalColorTableFile != 0)
-  {
-      vtkDebugMacro(<< "ReadFSAnnotation: Using external color table file\n");
-      error = ReadExternalColorTable (this->ColorTableFileName,
-                      &numColorTableEntries,
-                      &colorTableRGBs,
-                      &colorTableNames);
-      if (0 != error)
-      {
-          vtkErrorMacro ("ReadFSAnnotation: Got an error on reading external colour table " << error << endl);
-          fclose (annotFile);
-          free (rgbs);
-          free (labels);
-          return error;
-      }
-  }
-  else
+  bool colorTableRead = false;
+  if (!this->UseExternalColorTableFile)
   {
       vtkDebugMacro( << "ReadFSAnnotation: Not using external color table file\n");
       error = ReadEmbeddedColorTable (annotFile,
                                       &numColorTableEntries,
                                       &colorTableRGBs,
                                       &colorTableNames);
-      if (0 != error)
+      if (error)
       {
           vtkDebugMacro( << "ReadFSAnnotation: Got an error on reading embedded colour table " << error << endl);
           // Return vtkFSSurfaceAnnotationReader::FS_NO_COLOR_TABLE here so that the caller can
@@ -236,11 +221,36 @@ int vtkFSSurfaceAnnotationReader::ReadFSAnnotation()
           //free (rgbs);
           //free (labels);
           vtkDebugMacro( << "ReadFSAnnotation: Returning fs no color table: " << vtkFSSurfaceAnnotationReader::FS_NO_COLOR_TABLE << endl);
-          return vtkFSSurfaceAnnotationReader::FS_NO_COLOR_TABLE;
+      }
+      else
+      {
+        colorTableRead = true;
       }
   }
 
+  if (!colorTableRead && this->ColorTableFileName)
+  {
+      vtkDebugMacro(<< "ReadFSAnnotation: Using external color table file\n");
+      error = ReadExternalColorTable(this->ColorTableFileName,
+        &numColorTableEntries,
+        &colorTableRGBs,
+        &colorTableNames);
+      if (error)
+      {
+          vtkErrorMacro("ReadFSAnnotation: Got an error on reading external colour table " << error << endl);
+          fclose(annotFile);
+          free(rgbs);
+          free(labels);
+          return error;
+      }
+      colorTableRead = true;
+  }
 
+  if (!colorTableRead)
+  {
+    vtkErrorMacro("ReadFSAnnotation: could not read color table" << endl);
+    return vtkFSSurfaceAnnotationReader::FS_NO_COLOR_TABLE;
+  }
 
   // Now match up rgb values with table entries to find the label
   // indices for each vertex.
@@ -857,6 +867,11 @@ int vtkFSSurfaceAnnotationReader::ReadExternalColorTable (char* fileName,
       got = fgets (lineText, 1024, file);
       if (got)
       {
+          if (lineText[0] == '#' || lineText[0] == '\n' ||strlen(lineText) == 0)
+          {
+            lineNumber++;
+            continue;
+          }
           read = sscanf (lineText, "%d %*s %d %d %d %*s",
                          &entryIndex, &r, &g, &b);
           if (4 != read && -1 != read)
@@ -914,6 +929,11 @@ int vtkFSSurfaceAnnotationReader::ReadExternalColorTable (char* fileName,
       got = fgets (lineText, 1024, file);
       if (got)
       {
+          if (lineText[0] == '#' || lineText[0] == '\n' || strlen(lineText) == 0)
+          {
+              lineNumber++;
+              continue;
+          }
           read = sscanf (lineText, "%d %s %d %d %d %*s",
                          &entryIndex, name, &r, &g, &b);
           if (5 != read && -1 != read)
@@ -972,11 +992,11 @@ int vtkFSSurfaceAnnotationReader::ReadExternalColorTable (char* fileName,
 
   }
   fclose(file);
-  vtkDebugMacro(<< "ReadExternalColorTable: got num color table entries = " << numColorTableEntries << ", and line number = " << lineNumber );
-  if (lineNumber != numColorTableEntries) {
-    vtkErrorMacro(<<"ReadExternalColorTable: number of lines in the colour table file " << lineNumber << ", do not match expected number of entries " << numColorTableEntries << endl);
-    return -1;
-  }
+  //vtkDebugMacro(<< "ReadExternalColorTable: got num color table entries = " << numColorTableEntries << ", and line number = " << lineNumber );
+  //if (lineNumber != numColorTableEntries) {
+  //  vtkErrorMacro(<<"ReadExternalColorTable: number of lines in the colour table file " << lineNumber << ", do not match expected number of entries " << numColorTableEntries << endl);
+  //  return -1;
+  //}
   *onumEntries = numColorTableEntries;
   *orgbValues = rgbValues;
   *onames = names;

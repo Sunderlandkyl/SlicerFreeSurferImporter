@@ -210,6 +210,7 @@ bool vtkMRMLFreeSurferModelOverlayStorageNode::ReadScalarOverlayAnnot(const std:
   reader->SetColorTableOutput(lutNode->GetLookupTable());
   //try reading an internal colour table first
   reader->UseExternalColorTableFileOff();
+  reader->SetColorTableFileName("E:/d/s/SlicerFreeSurfer/FreeSurferImporter/Resources/Data/FreeSurferColorLUT20150729.txt");
   reader->SetDebug(this->GetDebug());
   int errorCode = reader->ReadFSAnnotation();
 
